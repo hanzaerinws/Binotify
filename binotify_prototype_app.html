@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Binotify</title>
+
+<script>
+/* ===== STATE ===== */
+let darkMode = false;
+let currentBinId = null;
+let bins = [
+  { id: 1, level: 20, location: 'Area 1', lastCleaned: 'Never' },
+  { id: 2, level: 100, location: 'Area 2', lastCleaned: '2025-02-01 10:30' },
+  { id: 3, level: 60, location: 'Area 3', lastCleaned: '2025-02-03 14:10' }
+];
+
+/* ===== NAV ===== */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ===== HOME ===== */
+function renderBins() {
+  const list = document.getElementById('binList');
+  list.innerHTML = '';
+
+  bins.forEach(bin => {
+    let status = 'Not Full';
+    let color = 'green';
+    if (bin.level >= 80 && bin.level < 100) { status = 'Half Full'; color = 'yellow'; }
+    if (bin.level === 100) { status = 'FULL'; color = 'red'; }
+
+    list.innerHTML += `
+      <div class="bin ${color}" onclick="openBin(${bin.id})">
+        Bin ${bin.id}<br>
+        <small>Status: ${status}</small>
+        <button class="mini danger" onclick="event.stopPropagation(); removeBin(${bin.id})">✖</button>
+      </div>`;
+  });
+}
+
+/* ===== BIN DETAILS ===== */
+function openBin(id) {
+  currentBinId = id;
+  const bin = bins.find(b => b.id === id);
+
+  let status = 'Not Full';
+  if (bin.level >= 80 && bin.level < 100) status = 'Half Full';
+  if (bin.level === 100) status = 'FULL';
+
+  document.getElementById('binTitle').innerText = `Bin ${id}`;
+  document.getElementById('binStatus').innerText = status;
+  document.getElementById('binLocation').innerText = bin.location;
+  document.getElementById('lastCleaned').innerText = bin.lastCleaned;
+
+  document.getElementById('fillText').innerText = bin.level + '%';
+  document.getElementById('progressCircle').style.strokeDashoffset = 440 - (440 * bin.level / 100);
+
+  const badge = document.getElementById('statusBadge');
+  badge.className = 'status-badge ' + (status === 'FULL' ? 'badge-red' : status === 'Half Full' ? 'badge-yellow' : 'badge-green');
+  badge.innerText = status;
+
+  document.getElementById('warning').classList.toggle('show', status === 'FULL');
+
+  renderHistory(id);
+  showScreen('details');
+}
+
+function cleanBin() {
+  const bin = bins.find(b => b.id === currentBinId);
+  bin.level = 0;
+  bin.lastCleaned = new Date().toLocaleString();
+  renderBins();
+  showScreen('bins');
+}
+
+/* ===== HISTORY ===== */
+function renderHistory(id) {
+  const bin = bins.find(b => b.id === id);
+  document.getElementById('historyLog').innerHTML = `<li>Last cleaned: ${bin.lastCleaned}</li>`;
+}
+
+/* ===== ADD BIN ===== */
+function addBin() {
+  showScreen('loading');
+  setTimeout(() => {
+    const newId = bins.length + 1;
+    bins.push({ id: newId, level: 0, location: 'New Area', lastCleaned: 'Never' });
+    renderBins();
+    showScreen('bins');
+  }, 2000);
+}
+
+function removeBin(id) {
+  bins = bins.filter(b => b.id !== id);
+  renderBins();
+}
+
+/* ===== SETTINGS ===== */
+function toggleDarkMode() {
+  darkMode = !darkMode;
+  document.body.classList.toggle('dark', darkMode);
+}
+
+/* ===== INIT ===== */
+window.onload = () => renderBins();
+</script>
+
+<style>
+body{margin:0;background:#111;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh}
+body.dark{background:#000}
+.phone{width:390px;height:844px;background:#f5f5f5;border-radius:40px;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,.4)}
+body.dark .phone{background:#121212;color:#fff}
+.screen{position:absolute;inset:0;padding:24px;display:none;animation:slide .3s}
+.active{display:block}
+@keyframes slide{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+button{width:100%;padding:14px;border-radius:14px;border:none;font-size:16px;font-weight:600;background:#4caf50;color:#fff;margin-top:12px}
+.secondary{background:#aaa;color:#222}
+.mini{width:auto;padding:4px 8px;font-size:12px;margin-top:6px}
+.danger{background:#e53935}
+.bin{border-radius:18px;padding:16px;margin:12px 0;color:#fff;font-weight:600;position:relative}
+.green{background:#4caf50}
+.yellow{background:#fbc02d;color:#222}
+.red{background:#e53935}
+.card{background:#fff;border-radius:24px;padding:20px}
+body.dark .card{background:#1e1e1e}
+.status-badge{padding:6px 14px;border-radius:999px;font-weight:600;display:inline-block;margin-bottom:10px}
+.badge-green{background:#e8f5e9;color:#2e7d32}
+.badge-yellow{background:#fff8e1;color:#f57f17}
+.badge-red{background:#ffebee;color:#c62828}
+.progress{display:flex;justify-content:center;margin:14px 0;position:relative}
+svg{transform:rotate(-90deg)}
+circle{fill:none;stroke-width:10}
+.bg{stroke:#ddd}
+.fg{stroke:#4caf50;stroke-dasharray:440;transition:.4s}
+.progress-text{position:absolute;top:50%;transform:translateY(-50%);font-weight:700}
+.warning{background:#ff5252;color:#fff;padding:10px;border-radius:12px;display:none;animation:pulse 1s infinite}
+.warning.show{display:block}
+@keyframes pulse{50%{opacity:.6}}
+.map,.bin-img{height:90px;border-radius:14px;margin:10px 0;display:flex;align-items:center;justify-content:center;font-weight:600}
+.map{background:linear-gradient(135deg,#81c784,#aed581)}
+.bin-img{background:#c8e6c9;font-size:36px}
+ul{padding-left:18px}
+</style>
+</head>
+<body>
+<div class="phone">
+
+<!-- START -->
+<div id="start" class="screen active">
+  <h1>Binotify</h1>
+  <button onclick="showScreen('bins')">Check Bins</button>
+  <button class="secondary" onclick="showScreen('settings')">Settings</button>
+</div>
+
+<!-- BINS -->
+<div id="bins" class="screen">
+  <h2>Your Bins</h2>
+  <div id="binList"></div>
+  <button onclick="addBin()">➕ Add New Bin</button>
+  <button class="secondary" onclick="showScreen('start')">Back</button>
+</div>
+
+<!-- LOADING -->
+<div id="loading" class="screen">
+  <h2>Connecting to Smart Bin…</h2>
+  <p>Please wait</p>
+</div>
+
+<!-- DETAILS -->
+<div id="details" class="screen">
+  <div class="card">
+    <h2 id="binTitle"></h2>
+    <div id="statusBadge" class="status-badge"></div>
+    <div class="bin-img">🗑️</div>
+    <div class="progress">
+      <svg width="120" height="120">
+        <circle class="bg" cx="60" cy="60" r="50"></circle>
+        <circle id="progressCircle" class="fg" cx="60" cy="60" r="50"></circle>
+      </svg>
+      <div id="fillText" class="progress-text">0%</div>
+    </div>
+    <div id="warning" class="warning">⚠ BIN IS FULL – CLEAN NOW</div>
+    <p>Status: <span id="binStatus"></span></p>
+    <p>Location: <span id="binLocation"></span></p>
+    <p>Last cleaned: <span id="lastCleaned"></span></p>
+    <div class="map">📍 Map Preview</div>
+    <h4>History</h4>
+    <ul id="historyLog"></ul>
+    <button onclick="cleanBin()">Mark as Clean</button>
+    <button class="secondary" onclick="showScreen('bins')">Back</button>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings" class="screen">
+  <div class="card">
+    <h2>Settings</h2>
+    <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    <button class="secondary" onclick="showScreen('start')">Back</button>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
